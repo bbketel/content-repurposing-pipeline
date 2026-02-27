@@ -1,0 +1,2017 @@
+{
+  "name": "content-pipeline-v0.1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5213c365-643a-448e-8784-6d9ed553afd3",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://feeds.feedburner.com/TechCrunch",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5f5702fe-84de-4442-af7b-36357d33dc75",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        384,
+        0
+      ],
+      "id": "bb78c7e7-ebbc-4b1a-a3cb-6fbd90307322",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "jsCode": "function simpleHash(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    const char = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + char;\n    hash = hash & hash;\n  }\n  return Math.abs(hash).toString(16).padStart(8, '0');\n}\n\nfunction randomId() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\n// Get all existing hashes and their states from the sheet\nconst sheetRows = $input.all();\nconst existingItems = {};\nsheetRows.forEach(row => {\n  if (row.json.source_hash) {\n    existingItems[row.json.source_hash] = row.json.state || '';\n  }\n});\n\n// Get RSS items from the HTTP/XML nodes\nconst rssData = $('XML').first().json;\nconst channel = rssData.rss.channel;\nconst items = Array.isArray(channel.item) ? channel.item : [channel.item];\n\nreturn items.slice(0, 5).map(item => {\n  const url = typeof item.link === 'object' ? item.link._ || '' : item.link || '';\n  const pubDate = item.pubDate || '';\n  const normalized = url.trim().toLowerCase();\n  const hash = simpleHash(normalized + pubDate);\n\n  // Skip if already in a non-NEW terminal state\n  const existingState = existingItems[hash] || '';\n  const isNew = !existingState;\n\n  return {\n    json: {\n      source_hash: hash,\n      source_url: url,\n      source_title: item.title || '',\n      source_published_at: pubDate,\n      correlation_id: randomId(),\n      created_at: new Date().toISOString(),\n      is_new: isNew,\n      existing_state: existingState\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        0
+      ],
+      "id": "533b1804-4f40-44b2-a580-b1febfc03edd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source_hash": "={{ $('Code in JavaScript').item.json.source_hash }}",
+            "source_url": "={{ $('Code in JavaScript').item.json.source_url }}",
+            "source_title": "={{ $('Code in JavaScript').item.json.source_title }}",
+            "source_published_at": "={{ $('Code in JavaScript').item.json.source_published_at }}",
+            "state": "=",
+            "retry_count": "=",
+            "last_error": "=",
+            "prompt_version": "=",
+            "model": "=",
+            "llm_output_raw": "=",
+            "validation_status": "=",
+            "generation_attempt": "=",
+            "approval_form_url": "=",
+            "approved_by": "=",
+            "approved_at": "=",
+            "published_at": "=",
+            "draft_destination_url": "=",
+            "correlation_id": "=",
+            "created_at": "={{ $('Code in JavaScript').item.json.created_at }}",
+            "updated_at": "="
+          },
+          "matchingColumns": [
+            "source_hash"
+          ],
+          "schema": [
+            {
+              "id": "source_hash",
+              "displayName": "source_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_title",
+              "displayName": "source_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_published_at",
+              "displayName": "source_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "llm_output_raw",
+              "displayName": "llm_output_raw",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generation_attempt",
+              "displayName": "generation_attempt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approval_form_url",
+              "displayName": "approval_form_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_by",
+              "displayName": "approved_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_at",
+              "displayName": "approved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_destination_url",
+              "displayName": "draft_destination_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correlation_id",
+              "displayName": "correlation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        0
+      ],
+      "id": "7ea0871e-753c-4c6c-9498-350649e3dafa",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const title = item.json.source_title || '';\n  const url = item.json.source_url || '';\n  const pubDate = item.json.source_published_at || '';\n  const sourceHash = item.json.source_hash || '';\n  const correlationId = item.json.correlation_id || '';\n\n  // Normalize title\n  const cleanTitle = title\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .slice(0, 200);\n\n  // Build prompt-ready content block\n  const contentBlock = `Title: ${cleanTitle}\\nPublished: ${pubDate}\\nURL: ${url}`;\n\n  return {\n    json: {\n      ...item.json,\n      preprocessed_content: contentBlock,\n      state: 'PREPROCESSED',\n      updated_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        0
+      ],
+      "id": "749743bc-e254-4e0b-a1a6-7fb150730b00",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request_body) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1744,
+        0
+      ],
+      "id": "54cc9e8e-8992-4b9d-a0a1-1e60a3d02039",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ZCRb5n3oWiWVYBcF",
+          "name": "Header Auth account"
+        },
+        "openAiApi": {
+          "id": "9SNDsizlkHVMO91X",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const content = item.json.preprocessed_content;\n\n  const body = {\n    model: \"gpt-4o-mini\",\n    max_tokens: 1000,\n    messages: [\n      {\n        role: \"system\",\n        content: \"You are a content repurposing assistant. Given an article title and metadata, generate multi-channel marketing content. You must respond with valid JSON only. No prose, no markdown, no code fences. Only the JSON object.\"\n      },\n      {\n        role: \"user\",\n        content: `${content}\\n\\nRespond with a JSON object containing exactly these fields:\\n{\\n  \"twitter_thread\": [\"tweet 1\", \"tweet 2\", \"tweet 3\"],\\n  \"linkedin_post\": \"string, max 1300 chars\",\\n  \"newsletter\": \"string, max 500 chars\",\\n  \"title_options\": [\"option 1\", \"option 2\", \"option 3\"],\\n  \"hashtags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"]\\n}`\n      }\n    ]\n  };\n\n  return {\n    json: {\n      ...item.json,\n      request_body: body\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        0
+      ],
+      "id": "1d7eb7b2-9037-4982-8b21-31e77e6ad5c1",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const REQUIRED_FIELDS = ['twitter_thread', 'linkedin_post', 'newsletter', 'title_options', 'hashtags'];\n\nreturn $input.all().map(item => {\n  const raw = item.json.choices?.[0]?.message?.content || '';\n  let parsed = null;\n  let validationStatus = 'INVALID';\n  let lastError = '';\n\n  // Parse\n  try {\n    parsed = JSON.parse(raw);\n  } catch (e) {\n    lastError = `JSON parse failed: ${e.message}`;\n    return {\n      json: {\n        ...item.json,\n        llm_output_raw: raw,\n        validation_status: 'INVALID',\n        last_error: lastError,\n        state: 'FAILED_LLM',\n        updated_at: new Date().toISOString()\n      }\n    };\n  }\n\n  // Validate required fields\n  const missingFields = REQUIRED_FIELDS.filter(f => !(f in parsed));\n  if (missingFields.length > 0) {\n    lastError = `Missing fields: ${missingFields.join(', ')}`;\n    return {\n      json: {\n        ...item.json,\n        llm_output_raw: raw,\n        validation_status: 'INVALID',\n        last_error: lastError,\n        state: 'FAILED_LLM',\n        updated_at: new Date().toISOString()\n      }\n    };\n  }\n\n  // Validate field types\n  if (!Array.isArray(parsed.twitter_thread)) lastError += 'twitter_thread must be array. ';\n  if (typeof parsed.linkedin_post !== 'string') lastError += 'linkedin_post must be string. ';\n  if (typeof parsed.newsletter !== 'string') lastError += 'newsletter must be string. ';\n  if (!Array.isArray(parsed.title_options)) lastError += 'title_options must be array. ';\n  if (!Array.isArray(parsed.hashtags)) lastError += 'hashtags must be array. ';\n\n  if (lastError) {\n    return {\n      json: {\n        ...item.json,\n        llm_output_raw: raw,\n        validation_status: 'INVALID',\n        last_error: lastError.trim(),\n        state: 'FAILED_LLM',\n        updated_at: new Date().toISOString()\n      }\n    };\n  }\n\n  // Valid\n  return {\n    json: {\n      ...item.json,\n      llm_output_raw: raw,\n      twitter_thread: parsed.twitter_thread,\n      linkedin_post: parsed.linkedin_post,\n      newsletter: parsed.newsletter,\n      title_options: parsed.title_options,\n      hashtags: parsed.hashtags,\n      validation_status: 'VALID',\n      last_error: '',\n      state: 'GENERATED',\n      generation_attempt: (item.json.generation_attempt || 0) + 1,\n      updated_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        0
+      ],
+      "id": "6b8f83a7-9ca4-4cef-a17c-3ec169a7c6a6",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source_hash": "={{ $('Code in JavaScript2').item.json.source_hash }}",
+            "llm_output_raw": "={{ $('Code in JavaScript3').item.json.llm_output_raw }}",
+            "validation_status": "={{ $('Code in JavaScript3').item.json.validation_status }}",
+            "last_error": "={{ $('Code in JavaScript3').item.json.last_error }}",
+            "state": "={{ $('Code in JavaScript3').item.json.state }}",
+            "generation_attempt": "={{ $('Code in JavaScript3').item.json.generation_attempt }}",
+            "updated_at": "={{ $('Code in JavaScript3').item.json.updated_at }}"
+          },
+          "matchingColumns": [
+            "source_hash"
+          ],
+          "schema": [
+            {
+              "id": "source_hash",
+              "displayName": "source_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_title",
+              "displayName": "source_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_published_at",
+              "displayName": "source_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "llm_output_raw",
+              "displayName": "llm_output_raw",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generation_attempt",
+              "displayName": "generation_attempt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approval_form_url",
+              "displayName": "approval_form_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_by",
+              "displayName": "approved_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_at",
+              "displayName": "approved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_destination_url",
+              "displayName": "draft_destination_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correlation_id",
+              "displayName": "correlation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        0
+      ],
+      "id": "a837ec2a-bca3-46f3-a882-788449c3f1cb",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const hash = item.json.source_hash;\n  const title = $('Code in JavaScript3').item.json.source_title || 'Unknown Title';\n  const linkedinPost = $('Code in JavaScript3').item.json.linkedin_post || '';\n  const twitterThread = $('Code in JavaScript3').item.json.twitter_thread || [];\n  const titleOptions = $('Code in JavaScript3').item.json.title_options || [];\n  const hashtags = $('Code in JavaScript3').item.json.hashtags || [];\n\n  const emailBody = `\nNew content item ready for approval.\n\nSource Hash: ${hash}\nTitle: ${title}\n\n--- TWITTER THREAD ---\n${twitterThread.join('\\n\\n')}\n\n--- LINKEDIN POST ---\n${linkedinPost}\n\n--- TITLE OPTIONS ---\n${titleOptions.join('\\n')}\n\n--- HASHTAGS ---\n${hashtags.join(' ')}\n\nTo approve or reject, update the state column in your Google Sheet:\nAPPROVED or REJECTED\n\nSheet: https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk\n  `.trim();\n\n  return {\n    json: {\n      ...item.json,\n      source_title: title,\n      twitter_thread: twitterThread,\n      linkedin_post: linkedinPost,\n      title_options: titleOptions,\n      hashtags: hashtags,\n      state: 'PENDING_APPROVAL',\n      updated_at: new Date().toISOString(),\n      email_body: emailBody\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        0
+      ],
+      "id": "a64421ad-6bca-4e01-aec7-1c23342dc172",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "sendTo": "bbketel@gmail.com",
+        "subject": "={{ $('Code in JavaScript4').item.json.source_title }} — Ready for Approval",
+        "message": "={{ $('Code in JavaScript4').item.json.email_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2736,
+        0
+      ],
+      "id": "8e75bd59-ae8b-4371-bc5d-355c95b71f17",
+      "name": "Send a message",
+      "webhookId": "63036289-4027-4b1e-8252-c09491cbf64b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "N1f41FaPUowMmF09",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        448
+      ],
+      "id": "e432da92-1344-4528-8b17-18997b20b21f",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        448
+      ],
+      "id": "ae0aff8b-23d7-4055-83e9-9e925a083769",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1e72dd72-3ae3-405b-978d-f7ca94a3df41",
+              "leftValue": "={{ $json.published_at }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ef8b8861-936f-4d75-8d11-7faf02999f0a",
+              "leftValue": "={{ $json.state }}",
+              "rightValue": "APPROVED",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        512
+      ],
+      "id": "12443d3a-1301-4d45-902f-7d354895601a",
+      "name": "If",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const title = item.json.source_title || 'Untitled';\n  const hash = item.json.source_hash;\n  const url = item.json.source_url || '';\n  const pubDate = item.json.source_published_at || '';\n\n  let parsed = {};\n  try {\n    parsed = JSON.parse(item.json.llm_output_raw || '{}');\n  } catch(e) {\n    parsed = {};\n  }\n\n  const twitterThread = parsed.twitter_thread || [];\n  const linkedinPost = parsed.linkedin_post || '';\n  const newsletter = parsed.newsletter || '';\n  const titleOptions = parsed.title_options || [];\n  const hashtags = parsed.hashtags || [];\n\n  const docContent = `\nCONTENT DRAFT — ${title}\nGenerated by content-pipeline-v0.1\n\nSource URL: ${url}\nPublished: ${pubDate}\nSource Hash: ${hash}\n\n═══════════════════════════════════\nTWITTER THREAD\n═══════════════════════════════════\n${twitterThread.map((t, i) => `[${i+1}] ${t}`).join('\\n\\n')}\n\n═══════════════════════════════════\nLINKEDIN POST\n═══════════════════════════════════\n${linkedinPost}\n\n═══════════════════════════════════\nNEWSLETTER DRAFT\n═══════════════════════════════════\n${newsletter}\n\n═══════════════════════════════════\nTITLE OPTIONS\n═══════════════════════════════════\n${titleOptions.map((t, i) => `${i+1}. ${t}`).join('\\n')}\n\n═══════════════════════════════════\nHASHTAGS\n═══════════════════════════════════\n${hashtags.join(' ')}\n  `.trim();\n\n  return {\n    json: {\n      ...item.json,\n      doc_title: `[DRAFT] ${title}`,\n      doc_content: docContent\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        448
+      ],
+      "id": "e705566b-9a6b-4b9b-80b9-e20671986f76",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "folderId": "=1OPIoCb8dsQ7yx634_88ZIVF0HXiDVnDH",
+        "title": "={{ $json.doc_title }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        800,
+        448
+      ],
+      "id": "735e0979-0457-4fe5-894d-9dd877a88eb4",
+      "name": "Create a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "dWV86MC0cwUXLFvc",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "locationChoice": "location",
+              "text": "={{ $('Code in JavaScript5').item.json.doc_content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        448
+      ],
+      "id": "39413166-f9b5-4aa2-8f7a-22412290e73c",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "dWV86MC0cwUXLFvc",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source_hash": "={{ $('Code in JavaScript5').first().json.source_hash }}",
+            "state": "PUBLISHED",
+            "published_at": "={{ new Date().toISOString() }}",
+            "draft_destination_url": "={{ $('Create a document').item.json.id }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "source_hash"
+          ],
+          "schema": [
+            {
+              "id": "source_hash",
+              "displayName": "source_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_title",
+              "displayName": "source_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_published_at",
+              "displayName": "source_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "llm_output_raw",
+              "displayName": "llm_output_raw",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generation_attempt",
+              "displayName": "generation_attempt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approval_form_url",
+              "displayName": "approval_form_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_by",
+              "displayName": "approved_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_at",
+              "displayName": "approved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_destination_url",
+              "displayName": "draft_destination_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correlation_id",
+              "displayName": "correlation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1216,
+        448
+      ],
+      "id": "4c27c00b-a140-433d-9c6a-4629eed5a867",
+      "name": "Append or update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        544,
+        0
+      ],
+      "id": "351c6f54-e7a4-4937-96d7-a998dee9c4f0",
+      "name": "Get row(s) in sheet1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fefd9cfe-6929-48f6-953b-e17394bf9024",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        48
+      ],
+      "id": "8e04bc2c-4b53-4890-9eb3-2ec4a2bab6b0",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  return {\n    json: {\n      ...item.json,\n      state: 'NEW',\n      retry_count: 0,\n      last_error: '',\n      prompt_version: 'v1.0',\n      model: 'gpt-4o-mini',\n      llm_output_raw: '',\n      validation_status: '',\n      generation_attempt: 0,\n      approval_form_url: '',\n      approved_by: '',\n      approved_at: '',\n      published_at: '',\n      draft_destination_url: '',\n      updated_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        0
+      ],
+      "id": "304ec1a8-48d3-4663-923b-5c96a83ef5dd",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source_hash": "={{ $('Code in JavaScript4').item.json.source_hash }}",
+            "state": "PENDING_APPROVAL",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "source_hash"
+          ],
+          "schema": [
+            {
+              "id": "source_hash",
+              "displayName": "source_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_title",
+              "displayName": "source_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_published_at",
+              "displayName": "source_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "llm_output_raw",
+              "displayName": "llm_output_raw",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generation_attempt",
+              "displayName": "generation_attempt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approval_form_url",
+              "displayName": "approval_form_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_by",
+              "displayName": "approved_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_at",
+              "displayName": "approved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_destination_url",
+              "displayName": "draft_destination_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correlation_id",
+              "displayName": "correlation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2880,
+        0
+      ],
+      "id": "1dd9bd5b-a55b-4bb9-a1c4-c63cefa1bffb",
+      "name": "Append or update row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const MAX_RETRIES = 2;\n\nreturn $input.all().map(item => {\n  // If valid, pass through unchanged\n  if (item.json.validation_status === 'VALID') {\n    return { json: item.json };\n  }\n\n  // Failed item — check retry count\n  const retryCount = (item.json.retry_count || 0) + 1;\n\n  if (retryCount > MAX_RETRIES) {\n    return {\n      json: {\n        ...item.json,\n        state: 'QUARANTINED',\n        retry_count: retryCount,\n        last_error: `Quarantined after ${MAX_RETRIES} retries. Last error: ${item.json.last_error}`,\n        updated_at: new Date().toISOString()\n      }\n    };\n  }\n\n  return {\n    json: {\n      ...item.json,\n      state: 'FAILED_LLM',\n      retry_count: retryCount,\n      updated_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        0
+      ],
+      "id": "60399d5b-854a-4920-888c-1d0d5c0857c1",
+      "name": "Retry Logic"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a86c717d-8830-4a04-81ae-c23a7a2f9c0c",
+              "leftValue": "={{ $json.validation_status }}",
+              "rightValue": "VALID",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2192,
+        0
+      ],
+      "id": "2b05b674-4d25-4c5e-a194-73e45119a472",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z_vDBKSPRI68KrhgVymzTj1-obtydhN4X4Vj7P7FjVk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source_hash": "={{ $json.source_hash }}",
+            "state": "={{ $json.state }}",
+            "retry_count": "={{ $json.retry_count }}",
+            "last_error": "={{ $json.last_error }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "source_hash"
+          ],
+          "schema": [
+            {
+              "id": "source_hash",
+              "displayName": "source_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_title",
+              "displayName": "source_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_published_at",
+              "displayName": "source_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prompt_version",
+              "displayName": "prompt_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "llm_output_raw",
+              "displayName": "llm_output_raw",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generation_attempt",
+              "displayName": "generation_attempt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approval_form_url",
+              "displayName": "approval_form_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_by",
+              "displayName": "approved_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_at",
+              "displayName": "approved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_destination_url",
+              "displayName": "draft_destination_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correlation_id",
+              "displayName": "correlation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        176
+      ],
+      "id": "3b64ac9d-223f-48ff-950c-97f862077926",
+      "name": "Append or update row in sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "O3QUFNRJGXgt1HPv",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "CONTENT REPURPOSING PIPELINE — V0.1\nMonitors an RSS feed every 15 minutes. For each new article, generates multi-channel \ncontent drafts (Twitter, LinkedIn, newsletter, titles, hashtags) via OpenAI, then \nroutes to a human approval gate before publishing. Built with idempotency, schema \nvalidation, retry logic, and full state tracking.",
+        "height": 176,
+        "width": 320,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -432,
+        -32
+      ],
+      "typeVersion": 1,
+      "id": "8459acd9-991f-446a-a4c6-580afc7618f1",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "RSS INGESTION\nFetches the TechCrunch RSS feed and parses XML to JSON. Extracts the 5 most recent articles.\n Computes a source_hash (normalized URL + publish date) used as the idempotency key throughout the pipeline.",
+        "height": 112,
+        "width": 416
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        192,
+        -176
+      ],
+      "typeVersion": 1,
+      "id": "3cfa7bf0-e8a2-4779-8156-01b58253736f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "DEDUPLICATION GATE\nReads all existing rows from the sheet before processing. Cross-references each \nincoming source_hash against known items entirely in memory. Only articles with no \nexisting record proceed — all others are silently skipped. Prevents reprocessing \non every 15-minute trigger cycle.",
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        768,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "e447e4da-792a-4ed4-b0a3-21b2c1d502f5",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "LLM GENERATION + VALIDATION\nBuilds a deterministic content block from article metadata and sends it to \ngpt-4o-mini with a strict JSON schema prompt. The response is parsed and validated \nagainst required fields and types. Failed items increment a retry counter — items \nexceeding 2 retries are quarantined. Valid items advance to GENERATED state.",
+        "height": 192,
+        "width": 336
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1616,
+        -240
+      ],
+      "typeVersion": 1,
+      "id": "ac489e0d-a488-47e4-aecd-26d392c43597",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "HUMAN APPROVAL GATE\nSets state to PENDING_APPROVAL and sends a structured email notification containing \nall generated content for review. No content proceeds to publishing without explicit \nhuman approval. State is persisted to the sheet after notification is sent.",
+        "height": 144,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2384,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "f11ded17-b3a7-43be-8ca5-81b94a9f344e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "APPROVAL + PUBLISH WORKFLOW\nRuns every 15 minutes independently of the main workflow. Scans all sheet rows for \nitems in APPROVED state with no published_at timestamp. For each approved item, \ngenerates a structured Google Doc draft and records the destination URL. Guarded \nagainst double-publishing.",
+        "height": 176,
+        "width": 336,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -416,
+        400
+      ],
+      "typeVersion": 1,
+      "id": "44c48af1-1a00-446f-a0de-7c9095bcaa04",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "PUBLISH GUARD\nTwo-condition check: state must equal APPROVED and published_at must be empty. \nBoth conditions must be true for an item to proceed. Ensures that approved items \nare never published twice even if the workflow runs multiple times.",
+        "height": 144,
+        "width": 336
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        192,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "03865f6a-c8be-434d-b182-cf294ec8bef4",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "DRAFT CREATION + STATE CLOSE\nBuilds a formatted Google Doc containing all five content outputs. Creates the \ndocument in the designated Drive folder, writes content in a second pass (Google \nDocs API constraint), then updates the sheet row with state PUBLISHED, the \ndocument URL, and a published_at timestamp to close the state machine.",
+        "height": 192,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        800,
+        224
+      ],
+      "typeVersion": 1,
+      "id": "8a3b0a81-524a-4385-8db9-b317615b0c0b",
+      "name": "Sticky Note7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Retry Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Create a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a document": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Logic": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append or update row in sheet4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2c88e277-3550-41c9-a34e-29ac9a5617ee",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b89932af83368057478ef2697882d70617d4c9d65f4902e09ac011f3816b2ec9"
+  },
+  "id": "IjVMZslcxN2mDNqw",
+  "tags": []
+}
